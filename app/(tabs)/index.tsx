@@ -1,70 +1,140 @@
-import { Image, StyleSheet, Platform } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
+import axios from 'axios';
+import React, { useEffect, useState } from 'react';
+import { FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+// Tela de Home (Lista de personagens)
+function HomeScreen({ navigation }) {
+  const [characters, setCharacters] = useState([]);
 
-export default function HomeScreen() {
+  useEffect(() => {
+    // Consumindo a API da Disney
+    axios.get('https://api.disneyapi.dev/characters')
+      .then(response => {
+        setCharacters(response.data.data);
+      })
+      .catch(error => {
+        console.log(error);
+      });
+  }, []);
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({ ios: 'cmd + d', android: 'cmd + m' })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          Tap the Explore tab to learn more about what's included in this starter app.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          When you're ready, run{' '}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+    <View style={styles.container}>
+      <FlatList
+        data={characters}
+        keyExtractor={item => item._id}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={styles.item}
+            onPress={() => navigation.navigate('Details', { characterId: item._id })}
+          >
+            <Image source={{ uri: item.imageUrl }} style={styles.image} />
+            <Text style={styles.name}>{item.name}</Text>
+          </TouchableOpacity>
+        )}
+      />
+    </View>
   );
 }
 
+// Tela de Detalhes do personagem
+function DetailsScreen({ route }) {
+  const { characterId } = route.params;
+  const [characterDetails, setCharacterDetails] = useState(null);
+
+  useEffect(() => {
+    // Buscando os detalhes do personagem
+    axios.get(`https://api.disneyapi.dev/characters/${characterId}`)
+      .then(response => {
+        setCharacterDetails(response.data);
+      })
+      .catch(error => {
+        console.log(error);
+      });
+  }, [characterId]);
+
+  if (!characterDetails) {
+    return <Text>Loading...</Text>;
+  }
+
+  return (
+    <View style={styles.detailsContainer}>
+      <Text style={styles.detailsName}>{characterDetails.name}</Text>
+
+      {characterDetails.films && characterDetails.films.length > 0 && (
+        <>
+          <Text style={styles.sectionTitle}>Films:</Text>
+          {characterDetails.films.map((film, index) => (
+            <Text key={index}>{film}</Text>
+          ))}
+        </>
+      )}
+
+      {characterDetails.tvShows && characterDetails.tvShows.length > 0 && (
+        <>
+          <Text style={styles.sectionTitle}>TV Shows:</Text>
+          {characterDetails.tvShows.map((show, index) => (
+            <Text key={index}>{show}</Text>
+          ))}
+        </>
+      )}
+
+      {characterDetails.parkAttractions && characterDetails.parkAttractions.length > 0 && (
+        <>
+          <Text style={styles.sectionTitle}>Park Attractions:</Text>
+          {characterDetails.parkAttractions.map((attraction, index) => (
+            <Text key={index}>{attraction}</Text>
+          ))}
+        </>
+      )}
+    </View>
+  );
+}
+
+// Configuração da navegação
+const Stack = createStackNavigator();
+
+export default function App() {
+  return (
+    <NavigationContainer>
+      <Stack.Navigator initialRouteName="Home">
+        <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen name="Details" component={DetailsScreen} />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+}
+
+// Estilos
 const styles = StyleSheet.create({
-  titleContainer: {
+  container: {
+    flex: 1,
+    padding: 16,
+  },
+  item: {
     flexDirection: 'row',
+    padding: 10,
     alignItems: 'center',
-    gap: 8,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  image: {
+    width: 50,
+    height: 50,
+    marginRight: 10,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  name: {
+    fontSize: 18,
+  },
+  detailsContainer: {
+    padding: 16,
+  },
+  detailsName: {
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  sectionTitle: {
+    marginTop: 10,
+    fontSize: 20,
+    fontWeight: 'bold',
   },
 });
